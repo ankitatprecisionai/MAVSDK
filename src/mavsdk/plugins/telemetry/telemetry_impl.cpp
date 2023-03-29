@@ -80,10 +80,10 @@ void TelemetryImpl::init()
         [this](const mavlink_message_t& message) { process_sys_status(message); },
         this);
 
-    _parent->register_mavlink_message_handler(
+    /*_parent->register_mavlink_message_handler(
         MAVLINK_MSG_ID_BATTERY_STATUS,
         [this](const mavlink_message_t& message) { process_battery_status(message); },
-        this);
+        this);*/
 
     _parent->register_mavlink_message_handler(
         MAVLINK_MSG_ID_HEARTBEAT,
@@ -1086,7 +1086,7 @@ void TelemetryImpl::process_sys_status(const mavlink_message_t& message)
     mavlink_sys_status_t sys_status;
     mavlink_msg_sys_status_decode(&message, &sys_status);
 
-    if (!_has_bat_status) {
+    /*if (!_has_bat_status) {
         Telemetry::Battery new_battery;
         new_battery.voltage_v = sys_status.voltage_battery * 1e-3f;
         // FIXME: it is strange calling it percent when the range goes from 0 to 1.
@@ -1101,6 +1101,22 @@ void TelemetryImpl::process_sys_status(const mavlink_message_t& message)
                 auto arg = battery();
                 _parent->call_user_callback([callback, arg]() { callback(arg); });
             }
+        }
+    }*/
+
+    Telemetry::Battery new_battery;
+    new_battery.voltage_v = sys_status.voltage_battery * 1e-3f;
+    // FIXME: it is strange calling it percent when the range goes from 0 to 1.
+    new_battery.remaining_percent = sys_status.battery_remaining * 1e-2f;
+
+    set_battery(new_battery);
+
+    {
+        std::lock_guard<std::mutex> lock(_subscription_mutex);
+        if (_battery_subscription) {
+            auto callback = _battery_subscription;
+            auto arg = battery();
+            _parent->call_user_callback([callback, arg]() { callback(arg); });
         }
     }
 
