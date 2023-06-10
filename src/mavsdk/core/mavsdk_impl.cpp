@@ -204,6 +204,30 @@ void MavsdkImpl::receive_message(mavlink_message_t& message, Connection* connect
         return;
     }
 
+    // Filter out messages by ALTA QGroundControl, however, only do that if MAVSDK
+    // is also implementing a ground station and not if it is used in another
+    // configuration, e.g. on a companion.
+    // ALTA QGC has sys id = 173 as captured from mavsdk server debug logs
+    if (_configuration.get_usage_type() == Mavsdk::Configuration::UsageType::GroundStation &&
+        message.sysid == 173) {
+        if (_message_logging_on) {
+            LogDebug() << "Ignoring messages from ALTA QGC as we are also a ground station";
+        }
+        return;
+    }
+
+    // Filter out messages by RTK Relay, however, only do that if MAVSDK
+    // is also implementing a ground station and not if it is used in another
+    // configuration, e.g. on a companion.
+    // RTK Relay has sys id = 173 and component id = 26
+    if (_configuration.get_usage_type() == Mavsdk::Configuration::UsageType::GroundStation &&
+        message.sysid == 253 && message.compid == MAV_COMP_ID_USER2) {
+        if (_message_logging_on) {
+            LogDebug() << "Ignoring messages from ALTA QGC as we are also a ground station";
+        }
+        return;
+    }
+
     std::lock_guard<std::recursive_mutex> lock(_systems_mutex);
 
     // The only situation where we create a system with sysid 0 is when we initialize the connection
